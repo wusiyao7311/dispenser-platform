@@ -1,5 +1,39 @@
 # Interview prep notes — VTEC Systems, Senior DevOps Software Developer Java
 
+## A real Jenkins run, not just a written Jenkinsfile
+
+The `Jenkinsfile` isn't just theoretical — it was actually run against a live
+Jenkins controller (Docker, local), and it took two real fixes to get green.
+This is worth mentioning if CI/CD debugging comes up, because it's a genuine
+troubleshooting story rather than a rehearsed one:
+
+1. **Build #1/#2 failed at checkout**: Jenkins' Git plugin refused to clone
+   from a local filesystem path — "aborted because it references a local
+   directory, which may be insecure." That's a real security guard (it stops
+   a pipeline from trivially reading arbitrary local files via a crafted
+   repo URL) that only needed bypassing because this was a throwaway local
+   sandbox with no real remote host. Fixed by setting
+   `-Dhudson.plugins.git.GitSCM.ALLOW_LOCAL_CHECKOUT=true` — and specifically
+   via `JAVA_OPTS` at container *startup*, because the Git plugin reads that
+   flag into a static field once at class-load time, so setting it later
+   through the Script Console silently had no effect. Good concrete example
+   of a JVM-static-init gotcha if asked about tricky bugs you've hit.
+2. **Build #3 succeeded but the "Integration Test" stage was silently
+   wrong**: it ran `mvn verify -Dsurefire.skip=true`, intending to skip
+   Surefire's unit tests since they'd already run in the previous stage.
+   `surefire.skip` isn't a property this `pom.xml` actually wires to
+   anything, so it was quietly ignored and the unit tests ran a second time
+   (harmless here since they passed, but wasteful, and it means the stage
+   didn't do what its own comment claimed). Fixed by calling the Failsafe
+   plugin's goals directly — `mvn failsafe:integration-test failsafe:verify`
+   — which runs only the integration tests without walking back through the
+   "test" phase at all. Verified locally before pushing the fix: build #4
+   is clean, 6 unit tests run once, 4 integration tests run once, no
+   duplication.
+
+If asked "tell me about a bug you found and fixed" in the interview, this is
+a legitimate, small, complete answer with a clear before/after.
+
 ## How to introduce this project
 
 One version, roughly 30 seconds:
