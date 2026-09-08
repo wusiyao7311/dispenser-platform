@@ -1,0 +1,50 @@
+---
+# Rolling deploy of the dispenser-platform container. Invoked from the
+# Jenkins "Deploy (Ansible)" stage with -e app_image=<registry>/<image>:<tag>.
+- name: Deploy dispenser-platform
+  hosts: dispenser_hosts
+  become: true
+  serial: 1          # one host at a time, so the fleet is never fully down
+  vars:
+    db_host: "{{ vault_db_host }}"
+    db_name: "{{ vault_db_name }}"
+    db_user: "{{ vault_db_user }}"
+    db_password: "{{ vault_db_password }}"   # supplied via ansible-vault, not in plain text
+
+  tasks:
+    - name: Render environment file
+      ansible.builtin.template:
+        src: templates/dispenser-platform.env.j2
+        dest: /opt/dispenser-platform/dispenser-platform.env
+        owner: dispenser-app
+        group: dispenser-app
+        mode: "0640"
+
+    - name: Pull application image
+      community.docker.docker_image:
+        name: "{{ app_image }}"
+        source: pull
+
+    - name: Run application container
+      community.docker.docker_container:
+        name: dispenser-platform
+        image: "{{ app_image }}"
+        env_file: /opt/dispenser-platform/dispenser-platform.env
+        ports:
+          - "{{ app_port }}:8080"
+        restart_policy: always
+        state: started
+        recreate: true
+
+    - name: Wait for the container to report healthy
+      ansible.builtin.uri:
+        url: "http://localhost:{{ app_port }}/actuator/health"
+        status_code: 200
+      register: health_check
+      until: health_check.status == 200
+      retries: 12
+      delay: 5
+
+    - name: Remove dangling images to reclaim disk space
+      community.docker.docker_prune:
+        images: true

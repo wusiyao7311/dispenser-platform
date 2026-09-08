@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <title>Dispenser Fleet Dashboard</title>
+    <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+    <header>
+        <h1>Dispenser Fleet Dashboard</h1>
+        <p class="subtitle">Vanilla HTML / CSS / JS talking to the Spring Boot REST API on <code>:8080</code></p>
+    </header>
+
+    <main>
+        <section id="low-stock-banner" class="banner" hidden>
+            <strong id="low-stock-count"></strong> stock level(s) at or below 20% capacity.
+        </section>
+
+        <section class="panel">
+            <div class="panel-header">
+                <h2>Dispensers</h2>
+                <button id="refresh-btn" type="button">Refresh</button>
+            </div>
+            <table id="dispenser-table">
+                <thead>
+                    <tr>
+                        <th>Code</th>
+                        <th>Location</th>
+                        <th>Status</th>
+                        <th>Stock</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </section>
+
+        <section class="panel">
+            <h2>Add dispenser</h2>
+            <form id="dispenser-form">
+                <input name="code" placeholder="Code (e.g. DSP-BER-04)" required />
+                <input name="location" placeholder="Location" required />
+                <select name="status">
+                    <option value="ACTIVE">ACTIVE</option>
+                    <option value="MAINTENANCE">MAINTENANCE</option>
+                    <option value="OFFLINE">OFFLINE</option>
+                </select>
+                <button type="submit">Create</button>
+            </form>
+            <p id="form-message" class="message"></p>
+        </section>
+    </main>
+
+    <script src="app.js"></script>
+</body>
+</html>
