@@ -61,6 +61,60 @@ demonstrated one instead of a denied one.
 | XML/JSON integration pipelines | Generalises directly to the CSV import/export endpoints here — same "keep two systems' data in sync" problem, different serialisation. |
 | Cross-border Agile/Scrum (US/India/China) | Speaks to communication and cross-team coordination, which the JD's "consulting... training for internal and external stakeholders" bullet is really asking about. |
 
+## Where the CITI build artifact actually went (prepared answer)
+
+You may get asked something like "walk me through what happened after Jenkins
+built your project" — a natural follow-up once CI/CD comes up. It's easy to
+half-remember this because the artifact itself isn't usually the part anyone
+looks at day to day. Ground truth worth having straight before the
+interview:
+
+**Git almost never holds the built artifact itself.** Git is for source; a
+built `.jar`/`.war` is a binary that changes every build and doesn't diff
+meaningfully, so serious shops don't let it bloat repository history. If
+Jenkins built a jar at Citi, that jar itself almost certainly did **not**
+live in git long-term — this is the same tradeoff that came up building this
+demo repo (I put a jar in `dist/` here for a portfolio-visible artifact, and
+flagged it as *not* normal practice).
+
+The artifact instead went one of two well-worn ways — worth mentally
+matching to what CITI actually did:
+
+1. **Artifact repository** (the most likely one at a bank this size): Jenkins
+   runs `mvn deploy`, which pushes the versioned jar to an internal Maven
+   repository — **Nexus or Artifactory**. Other services or later deployment
+   stages pull that exact version from there. A `<distributionManagement>`
+   block in `pom.xml`, or repo credentials in Jenkins' Maven `settings.xml`,
+   is the tell.
+2. **Docker image, not the raw jar**: given Jenkins + Maven + Docker were all
+   in play, more likely the jar got wrapped into a Docker image which was
+   then pushed to an internal registry, tagged with the build/version number
+   — the image is what actually got deployed. This is exactly the shape of
+   this repo's own `Jenkinsfile`: Build → Package → Docker Build → Docker
+   Push.
+
+**What might genuinely have touched git afterward** is probably what's
+prompting the half-memory:
+- A **git tag** cut per release (e.g. `v2.4.1`) so the source commit is
+  traceable to the artifact version in Nexus/the registry — the artifact
+  isn't *in* git, but its version is *linked through* git.
+- A separate **deployment/config repo** (GitOps style), where Jenkins
+  committed the new image tag into a Kubernetes manifest or Helm
+  `values.yaml`, and a CD tool (ArgoCD, Spinnaker) watched that repo and
+  deployed on commit — "the artifact reference lived in git," not the
+  artifact.
+
+**Safe phrasing if asked and genuinely unsure of the exact mechanism:**
+
+> "Jenkins built and versioned the artifact, and it was published to our
+> internal artifact or Docker registry rather than stored in git — git held
+> the source and the release tag, not the binary itself. I'd want to
+> double-check the exact deployment-repo pattern we used for the last mile
+> to production before I state it as fact."
+
+That's accurate to how virtually every serious Java shop runs this, and it
+doesn't overclaim a specific tool name you're not 100% sure of.
+
 ## Where you're genuinely new — and how to say so
 
 Don't oversell the demo project as equivalent to years of production
