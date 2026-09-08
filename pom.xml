@@ -14,7 +14,7 @@
     <groupId>com.vtecdemo</groupId>
     <artifactId>dispenser-platform</artifactId>
     <version>1.0.0</version>
-    <name>vtec-dispenser-platform</name>
+    <name>dispenser-platform</name>
     <description>
         Demo dispenser-fleet management platform built to demonstrate the Java + DevOps
         stack requested for the VTEC Systems Senior DevOps Software Developer Java role:

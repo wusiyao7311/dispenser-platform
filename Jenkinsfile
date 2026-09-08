@@ -7,7 +7,7 @@ pipeline {
     }
 
     environment {
-        IMAGE_NAME = "vtec-dispenser-platform"
+        IMAGE_NAME = "dispenser-platform"
         IMAGE_TAG  = "${env.BUILD_NUMBER}"
         // Falls back to "local" when no registry is configured on this
         // controller (e.g. a local trial run), instead of failing the whole
@@ -47,7 +47,7 @@ pipeline {
             when { expression { return env.SONAR_HOST_URL?.trim() } }
             steps {
                 withSonarQubeEnv('sonarqube') {
-                    sh 'mvn -B sonar:sonar -Dsonar.projectKey=vtec-dispenser-platform'
+                    sh 'mvn -B sonar:sonar -Dsonar.projectKey=dispenser-platform'
                 }
             }
         }
