@@ -84,6 +84,24 @@ pipeline {
             }
         }
 
+        stage('Publish to GitLab') {
+            // Skipped unless GITLAB_PROJECT_ID is set on this controller
+            // (Manage Jenkins > System > Global properties), same pattern
+            // as the SonarQube guard above — lets this run on controllers
+            // that have GitLab configured, and skip cleanly on ones that
+            // don't.
+            when { expression { return env.GITLAB_PROJECT_ID?.trim() } }
+            steps {
+                withCredentials([usernamePassword(
+                    credentialsId: 'gitlab-deploy-token',
+                    usernameVariable: 'GITLAB_DEPLOY_USERNAME',
+                    passwordVariable: 'GITLAB_DEPLOY_PASSWORD'
+                )]) {
+                    sh 'mvn -B -DskipTests deploy -s settings-gitlab.xml'
+                }
+            }
+        }
+
         stage('Docker Build') {
             steps {
                 sh "docker build -t ${DOCKER_REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG} -t ${DOCKER_REGISTRY}/${IMAGE_NAME}:latest ."

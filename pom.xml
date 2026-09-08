@@ -68,6 +68,19 @@
         </dependency>
     </dependencies>
 
+    <distributionManagement>
+        <!--
+            GitLab's Maven Package Registry for this project (id 86231489).
+            Auth comes from settings-gitlab.xml, which Jenkins fills in via
+            a credentials-bound env var — no token is stored here or in
+            settings-gitlab.xml itself.
+        -->
+        <repository>
+            <id>gitlab-maven</id>
+            <url>https://gitlab.com/api/v4/projects/86231489/packages/maven</url>
+        </repository>
+    </distributionManagement>
+
     <build>
         <finalName>dispenser-platform</finalName>
         <plugins>
