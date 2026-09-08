@@ -3,9 +3,10 @@
 ## A real Jenkins run, not just a written Jenkinsfile
 
 The `Jenkinsfile` isn't just theoretical — it was actually run against a live
-Jenkins controller (Docker, local), and it took two real fixes to get green.
-This is worth mentioning if CI/CD debugging comes up, because it's a genuine
-troubleshooting story rather than a rehearsed one:
+Jenkins controller (Docker, local), and it took several real fixes to get
+green, plus one deliberate decision to stop debugging. This is worth
+mentioning if CI/CD debugging (or judgment about when to stop) comes up,
+because it's a genuine troubleshooting story rather than a rehearsed one:
 
 1. **Build #1/#2 failed at checkout**: Jenkins' Git plugin refused to clone
    from a local filesystem path — "aborted because it references a local
@@ -30,9 +31,36 @@ troubleshooting story rather than a rehearsed one:
    "test" phase at all. Verified locally before pushing the fix: build #4
    is clean, 6 unit tests run once, 4 integration tests run once, no
    duplication.
+3. **Jenkins got OOM-killed mid-session**: another unrelated container on
+   the same machine (`quantmind`) was holding 6.4 GB of Docker Desktop's
+   8.3 GB VM budget, starving Jenkins until the kernel killed it.
+   `docker inspect vtec-jenkins --format '{{.State.OOMKilled}}'` confirmed
+   it in one command. Fixed by recreating the container with a hard
+   `--memory 1200m` cap and a bounded JVM heap (`-Xmx768m`) — small enough
+   to never get squeezed out again, regardless of what else is running.
+   Job history and config survived the crash intact (stored in a named
+   Docker volume, not the container itself) — worth knowing that
+   distinction if asked how you'd design for resilience.
+4. **GitLab deploy-token scope maze, and knowing when to stop**: wiring the
+   "Publish to GitLab" stage (jar → GitLab's Maven Package Registry) took
+   three attempts to get a correctly-scoped token — GitLab's newer
+   fine-grained personal access tokens require every permission spelled out
+   individually (missed "Code: Download" twice before switching to a
+   classic-scope Deploy Token instead). That one ultimately worked and is
+   verified live. The follow-up — pushing the Docker image to GitLab's
+   *Container* Registry the same way — did not: three correctly-scoped
+   tokens all got a generic 401 with no visible cause after checking
+   project settings, group settings, and the token scopes themselves. The
+   call made there was to **stop and document it honestly as unresolved**
+   rather than keep guessing against an opaque failure — see the README's
+   "What's real vs. illustrative" section. If asked about debugging
+   judgment, this is a good real example: know the difference between a
+   bug you can find with one more check and one where you're pattern-
+   matching blindly, and say so instead of pretending it's fixed.
 
-If asked "tell me about a bug you found and fixed" in the interview, this is
-a legitimate, small, complete answer with a clear before/after.
+If asked "tell me about a bug you found and fixed" in the interview, items
+1-3 are legitimate, complete answers with a clear before/after. If asked
+"tell me about a time you had to stop and cut your losses," item 4 is ready.
 
 ## How to introduce this project
 

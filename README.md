@@ -29,6 +29,7 @@ for anticipated questions and how to answer them.
 | Linux ops | Bash scripts (health-check, backup) | "Linux (Ubuntu, Debian)... scripting (Bash, PowerShell)" |
 | Windows/IoT ops | PowerShell service-restart script | "Windows administration (IoT)" |
 | Import/export | CSV import + export REST endpoints | "import and export interfaces" |
+| Artifact registry | GitLab Maven Package Registry | matches the actual CITI Jenkins→artifact-registry pattern (see interview notes) |
 
 ## Project layout
 
@@ -95,9 +96,22 @@ To be upfront about this for the interview itself:
 
 - **Real and runnable:** the Spring Boot app, its tests (10/10 passing), the
   Docker build, the frontend, the Prometheus/Actuator wiring.
-- **Illustrative (written to be correct, not executed here):** the Jenkinsfile
-  (needs an actual Jenkins controller + SonarQube server + Docker registry
-  credentials) and the Ansible playbooks (need real target hosts). Both are
-  written the way they'd actually be written for this stack, and are worth
-  walking through even though this sandbox couldn't spin up a Jenkins
-  controller or SSH targets to prove them live.
+- **Actually run, not just written:** the `Jenkinsfile` was executed against
+  a real Jenkins controller (Docker, local) pulling from the live GitHub repo
+  — Checkout, Build & Unit Test, Integration Test, Package, and Docker Build
+  all genuinely ran and passed (build #9). The "Publish to GitLab" stage
+  really uploaded the built jar into GitLab's Maven Package Registry
+  (`com.vtecdemo:dispenser-platform:1.0.0`, verified via the GitLab UI and
+  API) — this is the actual CITI Jenkins-artifact pattern reproduced end to
+  end, not a guess (see `docs/INTERVIEW-NOTES.md`).
+- **Configured but not verified live:** **Docker Push** (to GitLab's
+  Container Registry) was wired up the same way as the Maven publish —
+  correct scopes, correct credentials, correct endpoint — but authentication
+  was rejected with a generic 401 that didn't trace back to any visible
+  token, project, or group setting after checking all three. Rather than
+  keep guessing against an opaque failure, the call was made to stop and
+  document it honestly here instead of chasing it further. The **Ansible
+  deploy** and **SonarQube** stages remain genuinely illustrative — they need
+  real target hosts / a real Sonar server this sandbox doesn't have — and are
+  written the way they'd actually be written for this stack, worth walking
+  through even though unexecuted.
