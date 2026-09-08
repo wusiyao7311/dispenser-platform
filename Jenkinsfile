@@ -63,10 +63,12 @@ pipeline {
 
         stage('Integration Test') {
             steps {
-                // "mvn verify" additionally runs Failsafe (*IT): full Spring
-                // context against the H2 "test" profile. Surefire already
-                // ran in the previous stage, so skip re-running it here.
-                sh 'mvn -B verify -Dsurefire.skip=true'
+                // Calling the Failsafe goals directly (rather than "mvn
+                // verify", which re-triggers the "test" phase and therefore
+                // Surefire) reuses the classes already compiled and tested
+                // in the previous stage, instead of running unit tests
+                // twice. Full Spring context against the H2 "test" profile.
+                sh 'mvn -B failsafe:integration-test failsafe:verify'
             }
             post {
                 always {
