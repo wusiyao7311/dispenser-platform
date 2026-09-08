@@ -9,7 +9,10 @@ pipeline {
     environment {
         IMAGE_NAME = "vtec-dispenser-platform"
         IMAGE_TAG  = "${env.BUILD_NUMBER}"
-        DOCKER_REGISTRY = credentials('docker-registry-url')
+        // Falls back to "local" when no registry is configured on this
+        // controller (e.g. a local trial run), instead of failing the whole
+        // pipeline outright on a missing credential.
+        DOCKER_REGISTRY = "${env.DOCKER_REGISTRY_URL ?: 'local'}"
     }
 
     options {
@@ -37,6 +40,11 @@ pipeline {
         }
 
         stage('Static Analysis') {
+            // Skipped unless a "sonarqube" server is configured on this
+            // controller (Manage Jenkins > System > SonarQube servers) —
+            // lets the pipeline run end-to-end on a fresh Jenkins without
+            // failing on infrastructure that isn't there yet.
+            when { expression { return env.SONAR_HOST_URL?.trim() } }
             steps {
                 withSonarQubeEnv('sonarqube') {
                     sh 'mvn -B sonar:sonar -Dsonar.projectKey=vtec-dispenser-platform'
@@ -45,6 +53,7 @@ pipeline {
         }
 
         stage('Quality Gate') {
+            when { expression { return env.SONAR_HOST_URL?.trim() } }
             steps {
                 timeout(time: 5, unit: 'MINUTES') {
                     waitForQualityGate abortPipeline: true
@@ -80,7 +89,15 @@ pipeline {
         }
 
         stage('Docker Push') {
-            when { branch 'main' }
+            // Deploy is opt-in even on main: requires ENABLE_DEPLOY=true as
+            // a controller/job env var, so a fresh or local Jenkins never
+            // pushes/deploys by accident just because it built on main.
+            when {
+                allOf {
+                    branch 'main'
+                    expression { return env.ENABLE_DEPLOY == 'true' }
+                }
+            }
             steps {
                 withCredentials([usernamePassword(credentialsId: 'docker-registry-creds', usernameVariable: 'DUSER', passwordVariable: 'DPASS')]) {
                     sh 'echo "$DPASS" | docker login ${DOCKER_REGISTRY} -u "$DUSER" --password-stdin'
@@ -91,7 +108,12 @@ pipeline {
         }
 
         stage('Deploy (Ansible)') {
-            when { branch 'main' }
+            when {
+                allOf {
+                    branch 'main'
+                    expression { return env.ENABLE_DEPLOY == 'true' }
+                }
+            }
             steps {
                 sh """
                     ansible-playbook -i ansible/inventory.ini ansible/deploy.yml \
@@ -106,7 +128,13 @@ pipeline {
             echo "Pipeline failed at ${env.STAGE_NAME}. See console output for details."
         }
         always {
-            cleanWs()
+            script {
+                try {
+                    cleanWs()
+                } catch (err) {
+                    echo "Workspace Cleanup plugin not installed; skipping cleanWs()."
+                }
+            }
         }
     }
 }
